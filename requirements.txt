@@ -1,0 +1,10 @@
+# Local/dev environment (NOT uploaded to SageMaker).
+# src/ deliberately has NO requirements.txt: SageMaker's sklearn containers pip-install
+# any requirements.txt found in source_dir at start-up, which can silently replace the
+# container's pinned scikit-learn/pandas and break model.joblib compatibility.
+sagemaker>=3.0,<4
+boto3
+pandas>=2.3,<3
+numpy
+scikit-learn>=1.2
+joblib

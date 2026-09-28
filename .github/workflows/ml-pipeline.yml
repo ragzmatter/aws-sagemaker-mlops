@@ -1,0 +1,36 @@
+name: ml-pipeline
+# Upserts the SageMaker pipeline definition and starts an execution.
+# Auth: GitHub OIDC -> IAM role (no long-lived keys). One-time setup is in REVIEW_NOTES.md.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["src/**", "pipeline/**", "data/generate_data.py"]
+permissions:
+  id-token: write
+  contents: read
+env:
+  AWS_REGION: ap-south-1
+  PIPELINE_NAME: CustomerConversionPipeline
+  MODEL_GROUP: CustomerConversionModelGroup
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    needs: []
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip }
+      - run: pip install -r requirements-dev.txt && pytest -q
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Resolve names
+        run: |
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          echo "BUCKET=sagemaker-mlops-lab-$ACCOUNT" >> $GITHUB_ENV
+          echo "ROLE_ARN=arn:aws:iam::$ACCOUNT:role/SageMaker-MLOps-Lab-ExecutionRole" >> $GITHUB_ENV
+      - run: python pipeline/pipeline.py
+      - name: Start execution
+        run: aws sagemaker start-pipeline-execution --pipeline-name $PIPELINE_NAME --query PipelineExecutionArn --output text
